@@ -46,11 +46,11 @@ export async function fetchAllCategories(): Promise<TransactionCategoryOption[]>
     .filter((item) => item.name.length > 0);
 }
 
-export async function updateTransactionCategory(transactionId: number, category: string): Promise<void> {
+export async function updateTransactionCategory(transactionId: number, categoryId: number): Promise<void> {
   const response = await fetch(`${BASE_URL}/Transaction/${transactionId}/category`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(category),
+    body: JSON.stringify({ categoryId }),
   });
 
   if (!response.ok) {

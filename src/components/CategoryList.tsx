@@ -70,17 +70,22 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
     }
   }
 
-  async function handleCategoryChange(txId: number, oldCategory: string, newCategory: string) {
-    if (newCategory === oldCategory) {
+  async function handleCategoryChange(
+    txId: number,
+    oldCategory: string,
+    newCategoryId: number,
+    newCategoryName: string,
+  ) {
+    if (newCategoryName === oldCategory) {
       setEditingTxId(null);
       return;
     }
     setSaving(txId);
     setSaveError(null);
     try {
-      await updateTransactionCategory(txId, newCategory);
+      await updateTransactionCategory(txId, newCategoryId);
 
-      const categoriesToReload = Array.from(new Set([oldCategory, newCategory]));
+      const categoriesToReload = Array.from(new Set([oldCategory, newCategoryName]));
       const results = await Promise.all(
         categoriesToReload.map((cat) =>
           fetchCategoryTransactions(invoiceKey, cat).then((items) => ({ cat, items }))
@@ -247,15 +252,22 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
                                   </svg>
                                 ) : (
                                   <select
-                                    defaultValue={tx.category}
-                                    onChange={(e) => { e.stopPropagation(); handleCategoryChange(tx.id, tx.category, e.target.value); }}
+                                    defaultValue={String(tx.categoryId ?? "")}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      const selectedCategoryId = Number(e.target.value);
+                                      const selectedCategory = allCategories.find((c) => c.id === selectedCategoryId);
+                                      if (!selectedCategory) return;
+                                      handleCategoryChange(tx.id, tx.category, selectedCategory.id, selectedCategory.name);
+                                    }}
                                     onClick={(e) => e.stopPropagation()}
                                     disabled={saving === tx.id}
                                     autoFocus
                                     className="text-xs rounded-md px-2 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50"
                                   >
+                                    <option value="" disabled>Selecione...</option>
                                     {allCategories.map((c) => (
-                                      <option key={c.id} value={c.name}>{c.name}</option>
+                                      <option key={c.id} value={String(c.id)}>{c.name}</option>
                                     ))}
                                   </select>
                                 )}
