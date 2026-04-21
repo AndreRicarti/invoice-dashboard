@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { InvoiceCategory, CategoryTransactions } from "../types/invoice";
-import { fetchCategoryTransactions } from "../services/invoiceService";
+import { fetchCategoryTransactions, fetchAllCategories, updateTransactionCategory } from "../services/invoiceService";
 
 const CATEGORY_COLORS = [
   "bg-violet-500",
@@ -48,6 +48,55 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState<Record<string, string>>({});
+  const [editingTxId, setEditingTxId] = useState<number | null>(null);
+  const [allCategories, setAllCategories] = useState<string[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [saving, setSaving] = useState<number | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function handleEditClick(txId: number) {
+    setEditingTxId(txId);
+    setSaveError(null);
+    if (allCategories.length > 0) return;
+    setCategoriesLoading(true);
+    try {
+      const cats = await fetchAllCategories();
+      setAllCategories(cats);
+    } catch {
+      // keep empty
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }
+
+  async function handleCategoryChange(txId: number, oldCategory: string, newCategory: string) {
+    if (newCategory === oldCategory) {
+      setEditingTxId(null);
+      return;
+    }
+    setSaving(txId);
+    setSaveError(null);
+    try {
+      await updateTransactionCategory(txId, newCategory);
+      setCache((prev) => {
+        const updated: Record<string, CategoryTransactions> = {};
+        for (const [key, val] of Object.entries(prev)) {
+          updated[key] = {
+            ...val,
+            transactions: key === oldCategory
+              ? val.transactions.filter((t) => t.id !== txId)
+              : val.transactions,
+          };
+        }
+        return updated;
+      });
+      setEditingTxId(null);
+    } catch {
+      setSaveError("Erro ao salvar. Tente novamente.");
+    } finally {
+      setSaving(null);
+    }
+  }
 
   async function handleToggle(categoryName: string) {
     if (expandedCategory === categoryName) {
@@ -168,26 +217,79 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
                 )}
 
                 {!isLoading && !hasError && transactions.length > 0 && (
-                  <ul className="divide-y divide-white/60 dark:divide-slate-800">
-                    {transactions.map((tx) => (
-                      <li key={tx.id} className="flex items-center justify-between px-4 py-2 gap-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{formatDate(tx.date)}</span>
-                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{tx.title}</span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {tx.isRefund && (
-                            <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
-                              Reembolso
-                            </span>
-                          )}
-                          <span className={`text-sm font-semibold ${tx.isRefund ? "text-emerald-600 dark:text-emerald-400" : "text-slate-800 dark:text-slate-100"}`}>
-                            {formatCurrency(tx.amount)}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    {saveError && (
+                      <p className="mx-4 mb-1 text-xs text-rose-500 dark:text-rose-400">{saveError}</p>
+                    )}
+                    <ul className="divide-y divide-white/60 dark:divide-slate-800">
+                      {transactions.map((tx) => (
+                        <li key={tx.id} className="flex items-center justify-between px-4 py-2 gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{formatDate(tx.date)}</span>
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{tx.title}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {editingTxId === tx.id ? (
+                              <>
+                                {categoriesLoading ? (
+                                  <svg className="w-3.5 h-3.5 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                ) : (
+                                  <select
+                                    defaultValue={tx.category}
+                                    onChange={(e) => { e.stopPropagation(); handleCategoryChange(tx.id, tx.category, e.target.value); }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    disabled={saving === tx.id}
+                                    autoFocus
+                                    className="text-xs rounded-md px-2 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50"
+                                  >
+                                    {allCategories.map((c) => (
+                                      <option key={c} value={c}>{c}</option>
+                                    ))}
+                                  </select>
+                                )}
+                                {saving === tx.id && (
+                                  <svg className="w-3.5 h-3.5 animate-spin text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                )}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditingTxId(null); setSaveError(null); }}
+                                  className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                                  title="Cancelar"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                {tx.isRefund && (
+                                  <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                                    Reembolso
+                                  </span>
+                                )}
+                                <span className={`text-sm font-semibold ${tx.isRefund ? "text-emerald-600 dark:text-emerald-400" : "text-slate-800 dark:text-slate-100"}`}>
+                                  {formatCurrency(tx.amount)}
+                                </span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleEditClick(tx.id); }}
+                                  className="p-1 rounded text-slate-400 hover:text-violet-500 dark:hover:text-violet-400 transition-colors"
+                                  title="Alterar categoria"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
                 )}
               </div>
             )}

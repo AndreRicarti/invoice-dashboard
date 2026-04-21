@@ -7,7 +7,7 @@ export default defineConfig({
     // Permite certificado auto-assinado do backend em localhost
     proxy: {
       "/api": {
-        target: "http://192.168.3.67:7086",
+        target: "https://localhost:7086",
         changeOrigin: true,
         secure: false,
       },
