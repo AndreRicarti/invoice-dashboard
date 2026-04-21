@@ -96,6 +96,62 @@ sudo -E docker run -d \
 
 Com isso, quando o CD publicar uma nova imagem latest, o Watchtower detecta e recria o container automaticamente.
 
+### 5.4 Usando docker-compose.yml (API + Frontend + Watchtower)
+
+Se voce estiver usando o compose no ZimaOS, atualize o servico frontend para usar imagem do GHCR (em vez de build local):
+
+```yaml
+version: "3"
+services:
+    api:
+        image: ghcr.io/andrericarti/cardledger-api:latest
+        ports:
+            - "7086:8080"
+        volumes:
+            - api-data:/app/data
+        restart: unless-stopped
+
+    frontend:
+        image: ghcr.io/andrericarti/invoice-dashboard:latest
+        ports:
+            - "3001:80"
+        depends_on:
+            - api
+        restart: unless-stopped
+
+    watchtower:
+        image: containrrr/watchtower
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+        environment:
+            - WATCHTOWER_POLL_INTERVAL=300
+            - WATCHTOWER_CLEANUP=true
+        restart: unless-stopped
+
+volumes:
+    api-data:
+```
+
+### 5.5 Comandos executados no ZimaOS (compose)
+
+```sh
+export DOCKER_CONFIG=/tmp
+cd ~/Documents
+sudo -E docker compose -f docker-compose.yml pull frontend
+sudo -E docker compose -f docker-compose.yml up -d frontend
+sudo docker ps
+```
+
+Se aparecer `no configuration file provided: not found`, voce esta fora da pasta do arquivo compose.
+
+Use:
+
+```sh
+find ~ -name "docker-compose.yml"
+sudo -E docker compose -f /caminho/encontrado/docker-compose.yml pull frontend
+sudo -E docker compose -f /caminho/encontrado/docker-compose.yml up -d frontend
+```
+
 ## 6. Verificação
 
 ```sh
@@ -114,4 +170,5 @@ sudo docker logs --tail 100 watchtower
 - Erro /root/.docker read-only: usar DOCKER_CONFIG=/tmp e sudo -E
 - 502 Bad Gateway: revisar proxy_pass no nginx.conf
 - Permission denied no build: manter RUN chmod -R +x node_modules/.bin no Dockerfile
+- no configuration file provided: not found: executar o compose na pasta correta ou usar -f com caminho completo
 
