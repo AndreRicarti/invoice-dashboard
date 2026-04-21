@@ -234,7 +234,7 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
                       {transactions.map((tx) => (
                         <li key={tx.id} className="flex items-center justify-between px-4 py-2 gap-3">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">{formatDate(tx.date)}</span>
+                            <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0 tabular-nums w-20 text-right">{formatDate(tx.date)}</span>
                             <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{tx.title}</span>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
