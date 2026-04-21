@@ -22,14 +22,14 @@ const iconVariant: Record<NonNullable<StatCardProps["variant"]>, string> = {
 
 export function StatCard({ title, value, icon, variant = "default", subtitle }: StatCardProps) {
   return (
-    <div className={`rounded-2xl border p-5 flex items-center gap-4 shadow-sm ${variantStyles[variant]}`}>
-      <div className={`p-3 rounded-xl shrink-0 ${iconVariant[variant]}`}>
+    <div className={`rounded-lg border px-3.5 py-3 flex items-center gap-2.5 shadow-sm ${variantStyles[variant]}`}>
+      <div className={`p-2 rounded-md shrink-0 ${iconVariant[variant]}`}>
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-medium uppercase tracking-wider opacity-70 mb-0.5">{title}</p>
-        <p className="text-2xl font-bold leading-none truncate">{value}</p>
-        {subtitle && <p className="text-xs mt-1 opacity-60">{subtitle}</p>}
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] opacity-70 mb-0.5">{title}</p>
+        <p className="text-[1.65rem] font-bold leading-none truncate">{value}</p>
+        {subtitle && <p className="text-[10px] mt-0.5 opacity-65">{subtitle}</p>}
       </div>
     </div>
   );

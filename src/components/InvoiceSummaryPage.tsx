@@ -162,27 +162,36 @@ export function InvoiceSummaryPage({ invoiceKey: initialKey = "2026-03" }: Invoi
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8 space-y-8">
+      <main className="max-w-3xl mx-auto px-4 py-5 space-y-5">
         {/* Month Hero */}
-        <section className="rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-600 p-6 text-white shadow-lg shadow-violet-200 dark:shadow-violet-950/60">
-          <p className="text-violet-200 text-xs font-semibold uppercase tracking-widest mb-1">Período</p>
-          <h1 className="text-3xl font-extrabold capitalize leading-none mb-4">{data.monthName}</h1>
-          <div className="flex items-end justify-between flex-wrap gap-4">
+        <section className="rounded-xl border border-violet-200/70 bg-white p-4 shadow-sm dark:border-violet-900/70 dark:bg-slate-900">
+          <div className="flex items-baseline justify-between gap-3 mb-3">
             <div>
-              <p className="text-violet-200 text-xs mb-1">Total líquido</p>
-              <p className="text-4xl font-black">{formatCurrency(data.netTotal)}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-violet-500 dark:text-violet-300">Período</p>
+              <h1 className="text-xl font-bold capitalize text-slate-900 dark:text-slate-100">{data.monthName}</h1>
             </div>
-            <div className="text-right">
-              <p className="text-violet-200 text-xs mb-1">{data.transactionCount} transações</p>
-              <p className="text-base font-semibold">{savingsPercent}% reembolsado</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="rounded-lg bg-violet-50 px-3 py-2 dark:bg-violet-950/30">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-violet-500 dark:text-violet-300">Total líquido</p>
+              <p className="text-2xl font-extrabold leading-none text-violet-700 dark:text-violet-200">{formatCurrency(data.netTotal)}</p>
+            </div>
+            <div className="rounded-lg bg-emerald-50 px-3 py-2 dark:bg-emerald-950/30">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-300">Reembolso</p>
+              <p className="text-2xl font-bold leading-none text-emerald-700 dark:text-emerald-200">{savingsPercent}%</p>
+            </div>
+            <div className="rounded-lg bg-slate-100 px-3 py-2 dark:bg-slate-800">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Total transações</p>
+              <p className="text-2xl font-bold leading-none text-slate-700 dark:text-slate-200">{data.transactionCount}</p>
             </div>
           </div>
         </section>
 
         {/* Stats Grid */}
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Visão geral</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500 mb-2">Visão geral</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <StatCard
               title="Total gasto"
               value={formatCurrency(data.totalSpent)}
@@ -190,33 +199,19 @@ export function InvoiceSummaryPage({ invoiceKey: initialKey = "2026-03" }: Invoi
               variant="danger"
             />
             <StatCard
-              title="Total de reembolsos"
-              value={formatCurrency(data.totalRefunds)}
-              icon={<IconArrowDown />}
-              variant="success"
-              subtitle={`${savingsPercent}% do total gasto`}
-            />
-            <StatCard
               title="Total líquido"
               value={formatCurrency(data.netTotal)}
               icon={<IconReceipt />}
               variant="neutral"
-            />
-            <StatCard
-              title="Transações"
-              value={String(data.transactionCount)}
-              icon={<IconHash />}
-              variant="default"
-              subtitle="no período"
             />
           </div>
         </section>
 
         {/* Categories */}
         <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Categorias</h2>
-            <span className="text-xs text-slate-400 dark:text-slate-500">{data.categories.length} categorias</span>
+          <div className="flex items-center justify-between mb-2.5">
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Categorias</h2>
+            <span className="text-[11px] text-slate-400 dark:text-slate-500">{data.categories.length} categorias</span>
           </div>
           <CategoryList categories={data.categories} invoiceKey={data.invoiceKey} />
         </section>
