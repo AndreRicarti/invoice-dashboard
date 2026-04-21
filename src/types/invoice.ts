@@ -9,7 +9,9 @@ export interface InvoiceTransaction {
   date: string;
   title: string;
   amount: number;
+  categoryId?: number;
   category: string;
+  categoryName?: string;
   source: string;
   year: number;
   month: number;
@@ -19,6 +21,7 @@ export interface InvoiceTransaction {
 }
 
 export interface CategoryTransactions {
+  categoryId?: number;
   category: string;
   totalAmount: number;
   transactionCount: number;
