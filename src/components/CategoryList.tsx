@@ -78,18 +78,27 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
     setSaveError(null);
     try {
       await updateTransactionCategory(txId, newCategory);
+
+      const categoriesToReload = Array.from(new Set([oldCategory, newCategory]));
+      const results = await Promise.all(
+        categoriesToReload.map((cat) =>
+          fetchCategoryTransactions(invoiceKey, cat).then((items) => ({ cat, items }))
+        )
+      );
+
       setCache((prev) => {
-        const updated: Record<string, CategoryTransactions> = {};
-        for (const [key, val] of Object.entries(prev)) {
-          updated[key] = {
-            ...val,
-            transactions: key === oldCategory
-              ? val.transactions.filter((t) => t.id !== txId)
-              : val.transactions,
-          };
+        const updated = { ...prev };
+        for (const { cat, items } of results) {
+          const match = items.find((i) => i.category === cat);
+          if (match) {
+            updated[cat] = match;
+          } else {
+            updated[cat] = { ...(prev[cat] ?? { category: cat, totalAmount: 0, transactionCount: 0 }), transactions: [] };
+          }
         }
         return updated;
       });
+
       setEditingTxId(null);
     } catch {
       setSaveError("Erro ao salvar. Tente novamente.");

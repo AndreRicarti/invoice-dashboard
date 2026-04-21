@@ -12,8 +12,11 @@ export async function fetchInvoiceSummary(key: string): Promise<InvoiceSummary> 
   return response.json();
 }
 
-export async function fetchCategoryTransactions(key: string): Promise<CategoryTransactions[]> {
-  const response = await fetch(`${BASE_URL}/Invoice/key/${key}/transactions-by-category`);
+export async function fetchCategoryTransactions(key: string, category?: string): Promise<CategoryTransactions[]> {
+  const url = category
+    ? `${BASE_URL}/Invoice/key/${key}/transactions-by-category?category=${encodeURIComponent(category)}`
+    : `${BASE_URL}/Invoice/key/${key}/transactions-by-category`;
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Erro ao buscar transações: ${response.status} ${response.statusText}`);
