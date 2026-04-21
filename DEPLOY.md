@@ -1,147 +1,117 @@
-# Deploy — Invoice Dashboard no ZimaOS
+# Invoice Dashboard — CI/CD e Deploy no ZimaOS
 
-## Visão Geral
+Data: Abril 2026
+Projeto: Invoice Dashboard (React + Vite + Nginx)
 
-O frontend React é empacotado em um container Docker com Nginx, servido na porta 3000 do ZimaOS. A API .NET roda separadamente no ZimaOS na porta 7086, e o Nginx faz proxy reverso das chamadas `/api/` para ela.
+## 1. Visão Geral da Arquitetura
 
-## Arquivos de Deploy
+```text
+GitHub (master)
+    |- CI (npm ci + build)
+    |- CD (build/push imagem para GHCR)
 
-### Dockerfile
-
-```dockerfile
-FROM node:20-alpine AS build
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY . .
-RUN chmod -R +x node_modules/.bin
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+ZimaOS
+    |- docker run da imagem do GHCR
+    |- (opcional) Watchtower para auto update
 ```
 
-- `chmod -R +x node_modules/.bin` é necessário porque arquivos vindos do Windows perdem permissão de execução.
+Imagem publicada automaticamente:
 
-### nginx.conf
+`ghcr.io/<owner-do-repo-em-lowercase>/invoice-dashboard:latest`
 
-```nginx
-server {
-    listen 80;
-    root /usr/share/nginx/html;
-    index index.html;
+## 2. GitHub Actions (CI/CD)
 
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
+### CI — .github/workflows/ci.yml
 
-    location /api/ {
-        proxy_pass http://192.168.3.67:7086;
-    }
-}
+Executa em push e pull_request na branch master:
+
+- npm ci
+- npm run build
+
+### CD — .github/workflows/cd.yml
+
+Executa após CI bem-sucedido (workflow_run) na master:
+
+- login no GHCR
+- build da imagem via Dockerfile da raiz
+- push para GHCR com tag latest
+
+## 3. Arquivos de Pipeline
+
+- .github/workflows/ci.yml
+- .github/workflows/cd.yml
+
+## 4. Pré-requisitos no GitHub
+
+- Repositório com Actions habilitado
+- Pacote publicado no GHCR (package do repositório)
+- Se o pull no ZimaOS for sem autenticação, deixar o pacote Public no GHCR
+
+Observação: o workflow usa GITHUB_TOKEN com permissão packages: write, sem necessidade de criar token manual para o push.
+
+## 5. Comandos de Deploy no ZimaOS
+
+### 5.1 Primeiro setup (rodar uma vez)
+
+```sh
+# Evita erro de filesystem read-only no ZimaOS
+export DOCKER_CONFIG=/tmp
+
+# Baixar e subir a imagem publicada pelo CD
+sudo -E docker pull ghcr.io/<owner-do-repo-em-lowercase>/invoice-dashboard:latest
+sudo -E docker run -d \
+    --name invoice-dashboard \
+    -p 3000:80 \
+    --restart unless-stopped \
+    ghcr.io/<owner-do-repo-em-lowercase>/invoice-dashboard:latest
 ```
 
-> Ajuste o IP em `proxy_pass` se o endereço do ZimaOS mudar.
+### 5.2 Atualização manual (sem Watchtower)
 
-## Estrutura no ZimaOS
-
-```
-~/Documents/invoice-dashboard/
-├── Dockerfile
-├── nginx.conf
-├── package.json
-├── package-lock.json
-├── tsconfig.json
-├── vite.config.ts
-├── tailwind.config.js
-├── postcss.config.js
-├── index.html
-└── src/
-    └── ...
-```
-
-Os arquivos são enviados via gerenciador de arquivos web do ZimaOS (Files) para a pasta `Documents`.
-
-## Comandos de Deploy
-
-### Pré-requisito (filesystem read-only do ZimaOS)
-
-```bash
-export DOCKER_CONFIG=/DATA/.docker
-```
-
-O ZimaOS tem o sistema de arquivos root como read-only. Essa variável redireciona a config do Docker para um local gravável. Use `sudo -E` para preservá-la.
-
-### Primeiro deploy
-
-```bash
-cd ~/Documents/invoice-dashboard
-
-# Construir a imagem
-sudo -E docker build -t invoice-dashboard .
-
-# Iniciar o container
-sudo -E docker run -d -p 3000:80 --restart unless-stopped --name invoice-dashboard invoice-dashboard
-```
-
-### Atualizar após mudanças
-
-```bash
-cd ~/Documents/invoice-dashboard
-
-# Parar e remover o container antigo
+```sh
+export DOCKER_CONFIG=/tmp
+sudo -E docker pull ghcr.io/<owner-do-repo-em-lowercase>/invoice-dashboard:latest
 sudo -E docker stop invoice-dashboard
 sudo -E docker rm invoice-dashboard
-
-# Reconstruir a imagem
-sudo -E docker build -t invoice-dashboard .
-
-# Iniciar o novo container
-sudo -E docker run -d -p 3000:80 --restart unless-stopped --name invoice-dashboard invoice-dashboard
+sudo -E docker run -d \
+    --name invoice-dashboard \
+    -p 3000:80 \
+    --restart unless-stopped \
+    ghcr.io/<owner-do-repo-em-lowercase>/invoice-dashboard:latest
 ```
 
-### Comandos úteis
+### 5.3 Auto update (opcional) com Watchtower
 
-```bash
-# Ver containers rodando
+```sh
+export DOCKER_CONFIG=/tmp
+
+sudo -E docker run -d \
+    --name watchtower \
+    --restart unless-stopped \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -e WATCHTOWER_POLL_INTERVAL=300 \
+    -e WATCHTOWER_CLEANUP=true \
+    containrrr/watchtower
+```
+
+Com isso, quando o CD publicar uma nova imagem latest, o Watchtower detecta e recria o container automaticamente.
+
+## 6. Verificação
+
+```sh
 sudo docker ps
-
-# Ver logs do container
-sudo docker logs invoice-dashboard
-
-# Parar o container
-sudo docker stop invoice-dashboard
-
-# Iniciar container parado
-sudo docker start invoice-dashboard
-
-# Remover container
-sudo docker rm invoice-dashboard
-
-# Remover imagem
-sudo docker rmi invoice-dashboard
+sudo docker logs --tail 100 invoice-dashboard
+sudo docker logs --tail 100 watchtower
 ```
 
-## Acesso
+## 7. Acesso
 
-| Serviço   | URL                          |
-| --------- | ---------------------------- |
-| Frontend  | http://192.168.3.67:3000     |
-| API .NET  | http://192.168.3.67:7086     |
+- Frontend: http://IP-DO-ZIMA:3000
+- API: ajustar proxy_pass no nginx.conf para o IP/porta corretos da API
 
-## Problemas Encontrados e Soluções
+## 8. Problemas Comuns
 
-| Problema | Solução |
-| -------- | ------- |
-| `unknown shorthand flag: 't' in -t` | Usar `sudo` antes do comando Docker |
-| `mkdir /root/.docker: read-only file system` | Exportar `DOCKER_CONFIG=/DATA/.docker` e usar `sudo -E` |
-| `sh: tsc: Permission denied` | Adicionar `RUN chmod -R +x node_modules/.bin` no Dockerfile |
-| `502 Bad Gateway` | Alterar `proxy_pass` no nginx.conf de `localhost` para o IP real da API |
-| `Dockerfile: no such file or directory` | Navegar para a pasta correta com `cd ~/Documents/invoice-dashboard` |
+- Erro /root/.docker read-only: usar DOCKER_CONFIG=/tmp e sudo -E
+- 502 Bad Gateway: revisar proxy_pass no nginx.conf
+- Permission denied no build: manter RUN chmod -R +x node_modules/.bin no Dockerfile
 
-## Observações
-
-- O `--restart unless-stopped` garante que o container reinicie automaticamente com o ZimaOS.
-- Se a API .NET também for movida para Docker no futuro, usar `docker-compose` e trocar o `proxy_pass` para `http://api:8080`.
