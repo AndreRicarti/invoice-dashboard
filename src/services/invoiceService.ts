@@ -2,6 +2,11 @@ import type { InvoiceSummary, CategoryTransactions } from "../types/invoice";
 
 const BASE_URL = "/api";
 
+export interface TransactionCategoryOption {
+  id: number;
+  name: string;
+}
+
 export async function fetchInvoiceSummary(key: string): Promise<InvoiceSummary> {
   const response = await fetch(`${BASE_URL}/Invoice/key/${key}/summary`);
 
@@ -25,20 +30,20 @@ export async function fetchCategoryTransactions(key: string, category?: string):
   return response.json();
 }
 
-export async function fetchAllCategories(): Promise<string[]> {
+export async function fetchAllCategories(): Promise<TransactionCategoryOption[]> {
   const response = await fetch(`${BASE_URL}/Transaction/categories`);
 
   if (!response.ok) {
     throw new Error(`Erro ao buscar categorias: ${response.status} ${response.statusText}`);
   }
 
-  const data = await response.json();
-  if (Array.isArray(data) && data.length > 0 && typeof data[0] === "string") {
-    return data as string[];
-  }
-  return (data as Array<{ category?: string; name?: string }>).map(
-    (item) => item.category ?? item.name ?? String(item)
-  );
+  const data = (await response.json()) as Array<{ id?: number; name?: string; category?: string }>;
+  return data
+    .map((item, index) => ({
+      id: item.id ?? index,
+      name: item.name ?? item.category ?? "",
+    }))
+    .filter((item) => item.name.length > 0);
 }
 
 export async function updateTransactionCategory(transactionId: number, category: string): Promise<void> {

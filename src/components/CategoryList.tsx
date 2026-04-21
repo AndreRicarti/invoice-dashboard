@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { InvoiceCategory, CategoryTransactions } from "../types/invoice";
 import { fetchCategoryTransactions, fetchAllCategories, updateTransactionCategory } from "../services/invoiceService";
+import type { TransactionCategoryOption } from "../services/invoiceService";
 
 const CATEGORY_COLORS = [
   "bg-violet-500",
@@ -49,7 +50,7 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState<Record<string, string>>({});
   const [editingTxId, setEditingTxId] = useState<number | null>(null);
-  const [allCategories, setAllCategories] = useState<string[]>([]);
+  const [allCategories, setAllCategories] = useState<TransactionCategoryOption[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [saving, setSaving] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -254,7 +255,7 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
                                     className="text-xs rounded-md px-2 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50"
                                   >
                                     {allCategories.map((c) => (
-                                      <option key={c} value={c}>{c}</option>
+                                      <option key={c.id} value={c.name}>{c.name}</option>
                                     ))}
                                   </select>
                                 )}
