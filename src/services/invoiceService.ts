@@ -1,6 +1,16 @@
 import type { InvoiceSummary, CategoryTransactions } from "../types/invoice";
 
-const BASE_URL = "/api";
+function resolveApiBaseUrl(): string {
+  const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+
+  if (!configuredBaseUrl) {
+    return "/api";
+  }
+
+  return configuredBaseUrl.replace(/\/$/, "");
+}
+
+const BASE_URL = resolveApiBaseUrl();
 
 export interface TransactionCategoryOption {
   id: number;

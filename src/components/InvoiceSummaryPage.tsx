@@ -46,11 +46,24 @@ function shiftPeriod(key: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function getCurrentPeriodKey() {
+  const now = new Date();
+  const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getInitialPeriodFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const value = params.get("period")?.trim();
+  return value && /^\d{4}-\d{2}$/.test(value) ? value : null;
+}
+
 interface InvoiceSummaryPageProps {
   invoiceKey?: string;
 }
 
-export function InvoiceSummaryPage({ invoiceKey: initialKey = "2026-03" }: InvoiceSummaryPageProps) {
+export function InvoiceSummaryPage({ invoiceKey }: InvoiceSummaryPageProps) {
+  const initialKey = invoiceKey ?? getInitialPeriodFromQuery() ?? getCurrentPeriodKey();
   const [period, setPeriod] = useState(initialKey);
   const [data, setData] = useState<InvoiceSummaryType | null>(null);
   const [loading, setLoading] = useState(true);
