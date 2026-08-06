@@ -67,3 +67,15 @@ export async function updateTransactionCategory(transactionId: number, categoryI
     throw new Error(`Erro ao alterar categoria: ${response.status} ${response.statusText}`);
   }
 }
+
+export async function updateTransactionTitle(invoiceKey: string, transactionId: number, title: string): Promise<void> {
+  const response = await fetch(`${BASE_URL}/Transaction/${invoiceKey}/${transactionId}/title`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao alterar título: ${response.status} ${response.statusText}`);
+  }
+}

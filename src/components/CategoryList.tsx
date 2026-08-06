@@ -1,6 +1,11 @@
 import { useState } from "react";
-import type { InvoiceCategory, CategoryTransactions } from "../types/invoice";
-import { fetchCategoryTransactions, fetchAllCategories, updateTransactionCategory } from "../services/invoiceService";
+import type { InvoiceCategory, CategoryTransactions, InvoiceTransaction } from "../types/invoice";
+import {
+  fetchCategoryTransactions,
+  fetchAllCategories,
+  updateTransactionCategory,
+  updateTransactionTitle,
+} from "../services/invoiceService";
 import type { TransactionCategoryOption } from "../services/invoiceService";
 
 const CATEGORY_COLORS = [
@@ -54,8 +59,13 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [saving, setSaving] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [editingTitleTxId, setEditingTitleTxId] = useState<number | null>(null);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [savingTitleId, setSavingTitleId] = useState<number | null>(null);
+  const [titleSaveError, setTitleSaveError] = useState<string | null>(null);
 
   async function handleEditClick(txId: number) {
+    setEditingTitleTxId(null);
     setEditingTxId(txId);
     setSaveError(null);
     if (allCategories.length > 0) return;
@@ -110,6 +120,56 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
       setSaveError("Erro ao salvar. Tente novamente.");
     } finally {
       setSaving(null);
+    }
+  }
+
+  function handleTitleEditClick(tx: InvoiceTransaction) {
+    setEditingTxId(null);
+    setEditingTitleTxId(tx.id);
+    setTitleDraft(tx.title);
+    setTitleSaveError(null);
+  }
+
+  function handleTitleEditCancel() {
+    setEditingTitleTxId(null);
+    setTitleSaveError(null);
+  }
+
+  async function handleTitleSave(tx: InvoiceTransaction) {
+    const trimmed = titleDraft.trim();
+    if (!trimmed) {
+      setTitleSaveError("O título não pode ficar vazio.");
+      return;
+    }
+    if (trimmed === tx.title) {
+      setEditingTitleTxId(null);
+      setTitleSaveError(null);
+      return;
+    }
+    setSavingTitleId(tx.id);
+    setTitleSaveError(null);
+    try {
+      await updateTransactionTitle(invoiceKey, tx.id, trimmed);
+
+      setCache((prev) => {
+        const entry = prev[tx.category];
+        if (!entry) return prev;
+        return {
+          ...prev,
+          [tx.category]: {
+            ...entry,
+            transactions: entry.transactions.map((t) =>
+              t.id === tx.id ? { ...t, title: trimmed } : t
+            ),
+          },
+        };
+      });
+
+      setEditingTitleTxId(null);
+    } catch {
+      setTitleSaveError("Erro ao salvar título. Tente novamente.");
+    } finally {
+      setSavingTitleId(null);
     }
   }
 
@@ -236,12 +296,75 @@ export function CategoryList({ categories, invoiceKey }: CategoryListProps) {
                     {saveError && (
                       <p className="mx-4 mb-1 text-xs text-rose-500 dark:text-rose-400">{saveError}</p>
                     )}
+                    {titleSaveError && (
+                      <p className="mx-4 mb-1 text-xs text-rose-500 dark:text-rose-400">{titleSaveError}</p>
+                    )}
                     <ul className="divide-y divide-white/60 dark:divide-slate-800">
                       {transactions.map((tx) => (
                         <li key={tx.id} className="flex items-center justify-between px-4 py-2 gap-3">
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0 tabular-nums w-20 text-right">{formatDate(tx.date)}</span>
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{tx.title}</span>
+                            {editingTitleTxId === tx.id ? (
+                              <>
+                                <input
+                                  type="text"
+                                  value={titleDraft}
+                                  onChange={(e) => setTitleDraft(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      handleTitleSave(tx);
+                                    } else if (e.key === "Escape") {
+                                      e.preventDefault();
+                                      handleTitleEditCancel();
+                                    }
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  disabled={savingTitleId === tx.id}
+                                  autoFocus
+                                  className="min-w-0 flex-1 text-sm rounded-md px-2 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-400 disabled:opacity-50"
+                                />
+                                {savingTitleId === tx.id ? (
+                                  <svg className="w-3.5 h-3.5 shrink-0 animate-spin text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleTitleSave(tx); }}
+                                      className="p-1 rounded text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors shrink-0"
+                                      title="Salvar título"
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleTitleEditCancel(); }}
+                                      className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors shrink-0"
+                                      title="Cancelar"
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{tx.title}</span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleTitleEditClick(tx); }}
+                                  className="p-1 rounded text-slate-400 hover:text-violet-500 dark:hover:text-violet-400 transition-colors shrink-0"
+                                  title="Editar título"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                              </>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             {editingTxId === tx.id ? (
